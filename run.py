@@ -38,31 +38,32 @@ def send_point_cloud(rgba_points):
     z_field.offset = 8
 
     color_field = PointField()
-    color_field.name = "rgba"
+    color_field.name = "rgb"
     color_field.count = 1
     color_field.datatype = PointField.UINT32
     color_field.offset = 12
 
-    msg.width = rgba_points.shape[0]
     msg.height = 1
     msg.header.stamp = node.get_clock().now().to_msg()
     msg.header.frame_id = "unity"
 
     msg.fields = [x_field, y_field, z_field, color_field]
     msg.point_step = 16
-    msg.row_step = msg.width * msg.point_step
 
     format_string = ''
     data_list = []
     for i in range(0, rgba_points.shape[0]):
         alpha = int(255 * rgba_points[i, 6])
-        alpha = alpha * (alpha > 25)
-        entry = [float(rgba_points[i, 0]), float(rgba_points[i, 1]), float(rgba_points[i, 2]),
-                 int(255 * rgba_points[i, 5]),
-                 int(255 * rgba_points[i, 4]), int(255 * rgba_points[i, 3]), alpha]
-        format_string += 'f' * 3 + 'B' * 4
-        data_list.extend(entry)
+        if alpha > 125:
+            alpha = alpha * (alpha > 125)
+            entry = [float(rgba_points[i, 0]), float(rgba_points[i, 1]), float(rgba_points[i, 2]),
+                     int(255 * rgba_points[i, 5]),
+                     int(255 * rgba_points[i, 4]), int(255 * rgba_points[i, 3]), alpha]
+            format_string += 'f' * 3 + 'B' * 4
+            data_list.extend(entry)
 
+    msg.width = len(data_list) // 7
+    msg.row_step = msg.width * msg.point_step
     tmp = struct.pack(format_string, *data_list)
     msg.data = tmp
     for i in range(20):
@@ -93,6 +94,7 @@ if __name__ == "__main__":
     testbed.init_window(1920, 1080)
     testbed.shall_train = True
     testbed.nerf.render_with_lens_distortion = True
+    testbed.nerf.training.near_distance = .2
 
     n_steps = 3500 / 1
     old_training_step = 0
@@ -112,7 +114,6 @@ if __name__ == "__main__":
                 if testbed.training_step < old_training_step or old_training_step == 0:
                     old_training_step = 0
                     t.reset()
-
                 now = time.monotonic()
                 if now - tqdm_last_update > 0.1:
                     t.update(testbed.training_step - old_training_step)
@@ -120,14 +121,15 @@ if __name__ == "__main__":
                     old_training_step = testbed.training_step
                     tqdm_last_update = now
 
-        min_val = testbed.aabb.min
-        max_val = testbed.aabb.max
+        box_diff = testbed.aabb.max - testbed.aabb.min
+        min_val = -box_diff / 2
+        max_val = box_diff / 2
         # x_segments = np.linspace(min_val[0], max_val[0], 64)
         # y_segments = np.linspace(min_val[1], max_val[1], 64)
         # z_segments = np.linspace(min_val[2], max_val[2], 64)
-        x_segments = np.linspace(0, 1, 128)
-        y_segments = np.linspace(0, 1, 128)
-        z_segments = np.linspace(0, 1, 128)
+        x_segments = np.linspace(.25, .75, int(256*(.75-.25)))
+        y_segments = np.linspace(.45, .6, int(256*(.6-.45)))
+        z_segments = np.linspace(.4, .6, int(256*(.6-.4)))
         x, y, z = np.meshgrid(x_segments, y_segments, z_segments, indexing='ij')
         points = np.stack((x.flatten(), y.flatten(), z.flatten()), axis=1)
         points = points[0:256 * (points.shape[0] // 256), :]
@@ -142,18 +144,20 @@ if __name__ == "__main__":
         # dirs[:, 2] = 1
         dt = np.zeros((points.shape[0], 1))
         coords = np.hstack((points, dt, dirs))
-        points = points * (max_val - min_val) + min_val
         # coords = coords.T
         # coords = np.reshape(coords, (-1, coords.shape[0])).T
 
         out = testbed.sample_nerf(list(coords.flatten()))
-        out = np.reshape(out, (points.shape[0], -1))
+        out = np.reshape(out, (coords.shape[0], -1))
         # out_all.append(out)
         # out = np.reshape(out, (-1, points.shape[0])).T
         # points = np.reshape(points, (-1, points.shape[0])).T
 
         # out = np.vstack(out_all)
         # points = points_all
+        points = np.vstack((points[:, 0], points[:, 2], 1 - points[:, 1])).T
+        points = points * (max_val - min_val) + min_val
+        points = 2 * points
         send_point_cloud(np.hstack((points, out)))
 
     # if False:
