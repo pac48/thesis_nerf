@@ -3,71 +3,16 @@ import time
 from pyngp.common import *
 from tqdm import tqdm
 import pyngp.pyngp as ngp  # noqa
+from scripts.point_cloud_utils import send_point_cloud
 
-from sensor_msgs.msg import PointCloud2
-from sensor_msgs.msg import PointField
+
 import rclpy
-from rclpy.node import Node
-import struct
+
 
 print(dir(ngp.Testbed))
 
 
-def send_point_cloud(rgba_points):
-    node = Node('nerf_node')
-    pub = node.create_publisher(PointCloud2, "point_cloud", 10)
 
-    msg = PointCloud2()
-    x_field = PointField()
-    y_field = PointField()
-    z_field = PointField()
-
-    x_field.name = "x"
-    x_field.count = 1
-    x_field.datatype = PointField.FLOAT32
-    x_field.offset = 0
-
-    y_field.name = "y"
-    y_field.count = 1
-    y_field.datatype = PointField.FLOAT32
-    y_field.offset = 4
-
-    z_field.name = "z"
-    z_field.count = 1
-    z_field.datatype = PointField.FLOAT32
-    z_field.offset = 8
-
-    color_field = PointField()
-    color_field.name = "rgb"
-    color_field.count = 1
-    color_field.datatype = PointField.UINT32
-    color_field.offset = 12
-
-    msg.height = 1
-    msg.header.stamp = node.get_clock().now().to_msg()
-    msg.header.frame_id = "unity"
-
-    msg.fields = [x_field, y_field, z_field, color_field]
-    msg.point_step = 16
-
-    format_string = ''
-    data_list = []
-    for i in range(0, rgba_points.shape[0]):
-        alpha = int(255 * rgba_points[i, 6])
-        if alpha > 125:
-            alpha = alpha * (alpha > 125)
-            entry = [float(rgba_points[i, 0]), float(rgba_points[i, 1]), float(rgba_points[i, 2]),
-                     int(255 * rgba_points[i, 5]),
-                     int(255 * rgba_points[i, 4]), int(255 * rgba_points[i, 3]), alpha]
-            format_string += 'f' * 3 + 'B' * 4
-            data_list.extend(entry)
-
-    msg.width = len(data_list) // 7
-    msg.row_step = msg.width * msg.point_step
-    tmp = struct.pack(format_string, *data_list)
-    msg.data = tmp
-    for i in range(20):
-        pub.publish(msg)
 
 
 def ours_real_converted(path, frameidx=0):
@@ -86,6 +31,9 @@ if __name__ == "__main__":
 
     testbed = ngp.Testbed()
     testbed.root_dir = 'instant-ngp'
+    testbed.reload_network_from_file('base_14.json')
+    # testbed.reload_network_from_file('base.json')
+
     scene = '/home/paul/CLionProjects/thesis_nerf/nerf'
     # scene = '/home/paul/CLionProjects/thesis_nerf/box'
     scene_info = ours_real_converted(scene)
@@ -94,9 +42,9 @@ if __name__ == "__main__":
     testbed.init_window(1920, 1080)
     testbed.shall_train = True
     testbed.nerf.render_with_lens_distortion = True
-    testbed.nerf.training.near_distance = .2
+    testbed.nerf.training.near_distance = .21
 
-    n_steps = 3500 / 1
+    n_steps = 100*3500 / 1
     old_training_step = 0
 
     tqdm_last_update = 0

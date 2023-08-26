@@ -13,6 +13,8 @@ from tf2_ros.transform_listener import TransformListener
 from tf2_ros.buffer import Buffer
 from tf2_ros import TransformException
 
+from scripts.point_cloud_utils import quaternion_rotation_matrix
+
 
 def get_images():
     node = Node('nerf_node')
@@ -35,7 +37,7 @@ def get_images():
     tf_buffer = Buffer()
     tf_listener = TransformListener(tf_buffer, node)
     # num_cams = 12
-    num_cams = 12
+    num_cams = 5
     for i in range(1, num_cams + 1):
         if i == 1:
             node.create_subscription(CameraInfo, '/camera/color/camera_info_1', info_callback, 10)
@@ -66,29 +68,7 @@ def get_images():
     return imgs, transforms, info_msg[0]
 
 
-def quaternion_rotation_matrix(quat):
-    q0 = quat.w
-    q1 = quat.x
-    q2 = quat.y
-    q3 = quat.z
-    # First row of the rotation matrix
-    r00 = 2 * (q0 * q0 + q1 * q1) - 1
-    r01 = 2 * (q1 * q2 - q0 * q3)
-    r02 = 2 * (q1 * q3 + q0 * q2)
-    # Second row of the rotation matrix
-    r10 = 2 * (q1 * q2 + q0 * q3)
-    r11 = 2 * (q0 * q0 + q2 * q2) - 1
-    r12 = 2 * (q2 * q3 - q0 * q1)
-    # Third row of the rotation matrix
-    r20 = 2 * (q1 * q3 - q0 * q2)
-    r21 = 2 * (q2 * q3 + q0 * q1)
-    r22 = 2 * (q0 * q0 + q3 * q3) - 1
-    # 3x3 rotation matrix
-    rot_matrix = np.array([[r00, r01, r02],
-                           [r10, r11, r12],
-                           [r20, r21, r22]])
 
-    return rot_matrix
 
 
 def main():
