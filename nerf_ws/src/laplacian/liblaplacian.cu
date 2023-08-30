@@ -10,7 +10,7 @@ namespace internal {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         int ind_x = idx % x_dims;
         int ind_y = idx / x_dims;
-        constexpr int stride = 3;
+        constexpr int stride = 4;
 
         if (ind_x > 0 && ind_x < x_dims - 1 && ind_y > 0 && ind_y < y_dims - 1) {
 
@@ -30,11 +30,6 @@ namespace internal {
             s[shared_idx + 2] = vec[right_idx];
             s[shared_idx + 3] = vec[down_idx];
 
-//            float val = min(min(vec[up_idx], vec[down_idx]), min(vec[left_idx], vec[right_idx])) + .1f;
-//            float val_diag =
-//                    min(min(vec[up_left_idx], vec[up_right_idx]), min(vec[down_left_idx], vec[down_right_idx])) + .141f;
-//            val = min(val, val_diag);
-
             float val = vec[up_idx] * exp(-vec[up_idx]) + vec[down_idx] * exp(-vec[down_idx]) +
                         vec[left_idx] * exp(-vec[left_idx]) + vec[right_idx] * exp(-vec[right_idx]) +
                         vec[up_left_idx] * exp(-vec[up_left_idx]) + vec[up_right_idx] * exp(-vec[up_right_idx]) +
@@ -42,7 +37,8 @@ namespace internal {
             val = val / (exp(-vec[up_idx]) + exp(-vec[down_idx]) + exp(-vec[left_idx]) + exp(-vec[right_idx]) +
                          exp(-vec[up_left_idx]) + exp(-vec[up_right_idx]) + exp(-vec[down_left_idx]) +
                          exp(-vec[down_right_idx]));
-            val += .005;
+            float &cost = vec[stride * idx + 3];
+            val += cost;
 
             __syncthreads();
 //            4*u(x,y) = u(x-1,y)+u(x+1,y)+u(x,y+1)+u(x,y-1);
