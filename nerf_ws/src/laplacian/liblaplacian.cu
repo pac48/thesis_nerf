@@ -72,8 +72,8 @@ namespace internal {
                 double dL_dV_ptr_idx = 0;
 
                 double common_sum = 0;
-                for (int i = 0; i < 8; i++) {
-                    common_sum += exp(-X_ptr[indexes[i]]);
+                for (int ind: indexes) {
+                    common_sum += exp(-X_ptr[ind]);
                 }
                 for (int i = 0; i < 8; i++) {
                     const int left_idx = indexes[(0 + i) % 8];
@@ -86,15 +86,15 @@ namespace internal {
                     const int down_right_idx = indexes[(7 + i) % 8];
 
                     double tmp = X_ptr[up_left_idx] * exp(-2 * X_ptr[up_left_idx]) +
-                                X_ptr[left_idx] * exp(-X_ptr[up_left_idx] - X_ptr[left_idx]) +
-                                X_ptr[down_left_idx] * exp(-X_ptr[up_left_idx] - X_ptr[down_left_idx]) +
-                                X_ptr[up_idx] * exp(-X_ptr[up_left_idx] - X_ptr[up_idx]) +
-                                X_ptr[down_idx] * exp(-X_ptr[up_left_idx] - X_ptr[down_idx]) +
-                                X_ptr[up_right_idx] * exp(-X_ptr[up_left_idx] - X_ptr[up_right_idx]) +
-                                X_ptr[right_idx] * exp(-X_ptr[up_left_idx] - X_ptr[right_idx]) +
-                                X_ptr[down_right_idx] * exp(-X_ptr[up_left_idx] - X_ptr[down_right_idx]) +
-                                (-X_ptr[up_left_idx] + 1) * common_sum * exp(-X_ptr[up_left_idx]);
-                    dL_dV_ptr_idx += tmp * dL_dout_ptr[up_left_idx];  // (90000, 90000)* (90000,1)
+                                 X_ptr[left_idx] * exp(-X_ptr[up_left_idx] - X_ptr[left_idx]) +
+                                 X_ptr[down_left_idx] * exp(-X_ptr[up_left_idx] - X_ptr[down_left_idx]) +
+                                 X_ptr[up_idx] * exp(-X_ptr[up_left_idx] - X_ptr[up_idx]) +
+                                 X_ptr[down_idx] * exp(-X_ptr[up_left_idx] - X_ptr[down_idx]) +
+                                 X_ptr[up_right_idx] * exp(-X_ptr[up_left_idx] - X_ptr[up_right_idx]) +
+                                 X_ptr[right_idx] * exp(-X_ptr[up_left_idx] - X_ptr[right_idx]) +
+                                 X_ptr[down_right_idx] * exp(-X_ptr[up_left_idx] - X_ptr[down_right_idx]) +
+                                 (-X_ptr[up_left_idx] + 1.0) * common_sum * exp(-X_ptr[up_left_idx]);
+                    dL_dV_ptr_idx += tmp * dL_dout_ptr[up_left_idx/stride];  // (90000, 90000)* (90000,1)
                 }
 
                 dL_dV_ptr_idx /= (common_sum * common_sum);
