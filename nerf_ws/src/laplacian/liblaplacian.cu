@@ -71,9 +71,16 @@ namespace internal {
 
                 double dL_dV_ptr_idx = 0;
 
+                double offset = 0;
+                for (int ind: indexes) {
+                    offset += X_ptr[ind];
+                }
+                offset = offset / 8;
+                offset = 0; // TODO offset can help with numerical issues
+
                 double common_sum = 0;
                 for (int ind: indexes) {
-                    common_sum += exp(-X_ptr[ind]);
+                    common_sum += exp(offset - X_ptr[ind]);
                 }
                 for (int i = 0; i < 8; i++) {
                     const int left_idx = indexes[(0 + i) % 8];
@@ -85,19 +92,19 @@ namespace internal {
                     const int down_left_idx = indexes[(6 + i) % 8];
                     const int down_right_idx = indexes[(7 + i) % 8];
 
-                    double tmp = X_ptr[up_left_idx] * exp(-2 * X_ptr[up_left_idx]) +
-                                 X_ptr[left_idx] * exp(-X_ptr[up_left_idx] - X_ptr[left_idx]) +
-                                 X_ptr[down_left_idx] * exp(-X_ptr[up_left_idx] - X_ptr[down_left_idx]) +
-                                 X_ptr[up_idx] * exp(-X_ptr[up_left_idx] - X_ptr[up_idx]) +
-                                 X_ptr[down_idx] * exp(-X_ptr[up_left_idx] - X_ptr[down_idx]) +
-                                 X_ptr[up_right_idx] * exp(-X_ptr[up_left_idx] - X_ptr[up_right_idx]) +
-                                 X_ptr[right_idx] * exp(-X_ptr[up_left_idx] - X_ptr[right_idx]) +
-                                 X_ptr[down_right_idx] * exp(-X_ptr[up_left_idx] - X_ptr[down_right_idx]) +
-                                 (-X_ptr[up_left_idx] + 1.0) * common_sum * exp(-X_ptr[up_left_idx]);
-                    dL_dV_ptr_idx += tmp * dL_dout_ptr[up_left_idx/stride];  // (90000, 90000)* (90000,1)
+                    double tmp = X_ptr[up_left_idx] * exp(2 * offset - 2 * X_ptr[up_left_idx]) +
+                                 X_ptr[left_idx] * exp(2 * offset - X_ptr[up_left_idx] - X_ptr[left_idx]) +
+                                 X_ptr[down_left_idx] * exp(2 * offset - X_ptr[up_left_idx] - X_ptr[down_left_idx]) +
+                                 X_ptr[up_idx] * exp(2 * offset - X_ptr[up_left_idx] - X_ptr[up_idx]) +
+                                 X_ptr[down_idx] * exp(2 * offset - X_ptr[up_left_idx] - X_ptr[down_idx]) +
+                                 X_ptr[up_right_idx] * exp(2 * offset - X_ptr[up_left_idx] - X_ptr[up_right_idx]) +
+                                 X_ptr[right_idx] * exp(2 * offset - X_ptr[up_left_idx] - X_ptr[right_idx]) +
+                                 X_ptr[down_right_idx] * exp(2 * offset - X_ptr[up_left_idx] - X_ptr[down_right_idx]) +
+                                 (-X_ptr[up_left_idx] + 1.0) * common_sum * exp(offset - X_ptr[up_left_idx]);
+                    dL_dV_ptr_idx += (tmp / (common_sum * common_sum )) *
+                                     dL_dout_ptr[up_left_idx / stride];  // (90000, 90000)* (90000,1)
                 }
 
-                dL_dV_ptr_idx /= (common_sum * common_sum);
                 dL_dV_ptr[idx] = dL_dV_ptr_idx;
 
             } else if (X_ptr[stride * idx + 1] < 1.5) {
