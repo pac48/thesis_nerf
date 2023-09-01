@@ -5,7 +5,7 @@
 namespace internal {
     constexpr int blockSize = 256;
 
-    __global__ void forward_kernel(float *X_ptr, int x_dims, int y_dims) {
+    __global__ void forward_kernel_2d(float *X_ptr, int x_dims, int y_dims) {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         int ind_x = idx % x_dims;
         int ind_y = idx / x_dims;
@@ -46,8 +46,8 @@ namespace internal {
 
 
     __global__ void
-    backward_kernel(const float *const X_ptr, const float *const dL_dout_ptr, float *dL_dV_ptr, float *dL_dC_ptr,
-                    int x_dims, int y_dims) {
+    backward_kernel_2d(const float *const X_ptr, const float *const dL_dout_ptr, float *dL_dV_ptr, float *dL_dC_ptr,
+                       int x_dims, int y_dims) {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         int ind_x = idx % x_dims;
         int ind_y = idx / x_dims;
@@ -76,7 +76,6 @@ namespace internal {
                     offset += X_ptr[ind];
                 }
                 offset = offset / 8;
-                offset = 0; // TODO offset can help with numerical issues
 
                 double common_sum = 0;
                 for (int ind: indexes) {
@@ -101,7 +100,7 @@ namespace internal {
                                  X_ptr[right_idx] * exp(2 * offset - X_ptr[up_left_idx] - X_ptr[right_idx]) +
                                  X_ptr[down_right_idx] * exp(2 * offset - X_ptr[up_left_idx] - X_ptr[down_right_idx]) +
                                  (-X_ptr[up_left_idx] + 1.0) * common_sum * exp(offset - X_ptr[up_left_idx]);
-                    dL_dV_ptr_idx += (tmp / (common_sum * common_sum )) *
+                    dL_dV_ptr_idx += (tmp / (common_sum * common_sum)) *
                                      dL_dout_ptr[up_left_idx / stride];  // (90000, 90000)* (90000,1)
                 }
 
@@ -114,12 +113,12 @@ namespace internal {
         }
     }
 
-    void run_forward_kernel(float *X_ptr, int x_dims, int y_dims) {
-        int num_elements = x_dims * y_dims;
+    void run_forward_kernel(float *X_ptr, int x_dims, int y_dims, int z_dims) {
+        int num_elements = x_dims * y_dims * z_dims;
 
         int numThreads = num_elements;
         int gridSize = (numThreads + blockSize - 1) / blockSize;
-        forward_kernel<<<gridSize, blockSize>>>(X_ptr, x_dims, y_dims);
+        forward_kernel_2d<<<gridSize, blockSize>>>(X_ptr, x_dims, y_dims);
 
         cudaError_t error = cudaGetLastError();
         if (error != cudaSuccess) {
@@ -133,18 +132,18 @@ namespace internal {
         }
     }
 
-    void forward(float *X_ptr, int x_dims, int y_dims) {
-        run_forward_kernel(X_ptr, x_dims, y_dims);
+    void forward(float *X_ptr, int x_dims, int y_dims, int z_dims) {
+        run_forward_kernel(X_ptr, x_dims, y_dims, z_dims);
     }
 
     void
     run_backward_kernel(const float *const X_ptr, const float *const dL_dout_ptr, float *dL_dV_ptr, float *dL_dC_ptr,
-                        int x_dims, int y_dims) {
-        int num_elements = x_dims * y_dims;
+                        int x_dims, int y_dims, int z_dims) {
+        int num_elements = x_dims * y_dims * z_dims;
 
         int numThreads = num_elements;
         int gridSize = (numThreads + blockSize - 1) / blockSize;
-        backward_kernel<<<gridSize, blockSize>>>(X_ptr, dL_dout_ptr, dL_dV_ptr, dL_dC_ptr, x_dims, y_dims);
+        backward_kernel_2d<<<gridSize, blockSize>>>(X_ptr, dL_dout_ptr, dL_dV_ptr, dL_dC_ptr, x_dims, y_dims);
 
         cudaError_t error = cudaGetLastError();
         if (error != cudaSuccess) {
@@ -160,8 +159,8 @@ namespace internal {
 
     void
     backward(const float *const X_ptr, const float *const dL_dout_ptr, float *dL_dV_ptr, float *dL_dC_ptr, int x_dims,
-             int y_dims) {
-        run_backward_kernel(X_ptr, dL_dout_ptr, dL_dV_ptr, dL_dC_ptr, x_dims, y_dims);
+             int y_dims, int z_dims) {
+        run_backward_kernel(X_ptr, dL_dout_ptr, dL_dV_ptr, dL_dC_ptr, x_dims, y_dims, z_dims);
     }
 
 }

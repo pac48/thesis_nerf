@@ -54,3 +54,4 @@ endforeach ()
 
 install(TARGETS laplacian_solver_py LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/python3.10/site-packages/laplacian_py)
 install(FILES python/__init__.py DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/python3.10/site-packages/laplacian_py)
+install(FILES python/network.py DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/python3.10/site-packages/laplacian_py)
