@@ -22,15 +22,22 @@ namespace internal {
             const int down_left_idx = down_idx - stride;
             const int down_right_idx = down_idx + stride;
 
-            float val = X_ptr[up_idx] * exp(-X_ptr[up_idx]) + X_ptr[down_idx] * exp(-X_ptr[down_idx]) +
-                        X_ptr[left_idx] * exp(-X_ptr[left_idx]) + X_ptr[right_idx] * exp(-X_ptr[right_idx]) +
-                        X_ptr[up_left_idx] * exp(-X_ptr[up_left_idx]) +
-                        X_ptr[up_right_idx] * exp(-X_ptr[up_right_idx]) +
-                        X_ptr[down_left_idx] * exp(-X_ptr[down_left_idx]) +
-                        X_ptr[down_right_idx] * exp(-X_ptr[down_right_idx]);
-            val = val / (exp(-X_ptr[up_idx]) + exp(-X_ptr[down_idx]) + exp(-X_ptr[left_idx]) + exp(-X_ptr[right_idx]) +
-                         exp(-X_ptr[up_left_idx]) + exp(-X_ptr[up_right_idx]) + exp(-X_ptr[down_left_idx]) +
-                         exp(-X_ptr[down_right_idx]));
+            double offset = X_ptr[left_idx] + X_ptr[up_idx] + X_ptr[right_idx] + X_ptr[down_idx] + X_ptr[up_left_idx] +
+                            X_ptr[up_right_idx] + X_ptr[down_left_idx] + X_ptr[down_right_idx];
+            offset = offset / 8;
+
+            double val = X_ptr[up_idx] * exp(offset - X_ptr[up_idx]) + X_ptr[down_idx] * exp(offset - X_ptr[down_idx]) +
+                        X_ptr[left_idx] * exp(offset - X_ptr[left_idx]) +
+                        X_ptr[right_idx] * exp(offset - X_ptr[right_idx]) +
+                        X_ptr[up_left_idx] * exp(offset - X_ptr[up_left_idx]) +
+                        X_ptr[up_right_idx] * exp(offset - X_ptr[up_right_idx]) +
+                        X_ptr[down_left_idx] * exp(offset - X_ptr[down_left_idx]) +
+                        X_ptr[down_right_idx] * exp(offset - X_ptr[down_right_idx]);
+            val = val / (exp(offset - X_ptr[up_idx]) + exp(offset - X_ptr[down_idx]) + exp(offset - X_ptr[left_idx]) +
+                         exp(offset - X_ptr[right_idx]) +
+                         exp(offset - X_ptr[up_left_idx]) + exp(offset - X_ptr[up_right_idx]) +
+                         exp(offset - X_ptr[down_left_idx]) +
+                         exp(offset - X_ptr[down_right_idx]));
             float &cost = X_ptr[stride * idx + 3];
             val += cost;
 
@@ -118,7 +125,11 @@ namespace internal {
 
         int numThreads = num_elements;
         int gridSize = (numThreads + blockSize - 1) / blockSize;
-        forward_kernel_2d<<<gridSize, blockSize>>>(X_ptr, x_dims, y_dims);
+        if (z_dims == 1) {
+            forward_kernel_2d<<<gridSize, blockSize>>>(X_ptr, x_dims, y_dims);
+        } else {
+//            forward_kernel_3d<<<gridSize, blockSize>>>(X_ptr, x_dims, y_dims);
+        }
 
         cudaError_t error = cudaGetLastError();
         if (error != cudaSuccess) {
@@ -143,8 +154,11 @@ namespace internal {
 
         int numThreads = num_elements;
         int gridSize = (numThreads + blockSize - 1) / blockSize;
-        backward_kernel_2d<<<gridSize, blockSize>>>(X_ptr, dL_dout_ptr, dL_dV_ptr, dL_dC_ptr, x_dims, y_dims);
-
+        if (z_dims == 1) {
+            backward_kernel_2d<<<gridSize, blockSize>>>(X_ptr, dL_dout_ptr, dL_dV_ptr, dL_dC_ptr, x_dims, y_dims);
+        } else {
+//            backward_kernel_3d<<<gridSize, blockSize>>>(X_ptr, dL_dout_ptr, dL_dV_ptr, dL_dC_ptr, x_dims, y_dims);
+        }
         cudaError_t error = cudaGetLastError();
         if (error != cudaSuccess) {
             std::stringstream strstr;
