@@ -20,7 +20,7 @@ class LaplacianSolver(Function):
             else:
                 return T[:, :, :, 0].clone()
 
-        for i in range(10):
+        for i in range(20):
             intermediate.append(extract_value(X))
             laplacian_solver.forward(X)
             ctx.save_for_backward(*intermediate)
