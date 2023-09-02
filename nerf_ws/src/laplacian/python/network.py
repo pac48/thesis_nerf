@@ -9,8 +9,16 @@ import laplacian_py.laplacian_solver_py as laplacian_solver
 
 class LaplacianSolver(Function):
     @staticmethod
-    def forward(ctx, V, C, boundary_types, boundary_conditions):
+    def forward(ctx, V, C, boundary_types, boundary_conditions, width):
         num_dims = len(V.shape)
+        weight = torch.ones(1, 1, width, width, dtype=torch.float32, device='cuda')
+        weight = weight/weight.numel()
+        objects_bounds = boundary_conditions*(boundary_types == 1)*(boundary_conditions > 0)
+        extra_cost = F.conv2d(objects_bounds.unsqueeze(dim=0), weight, bias=None, stride=1, padding='same', dilation=1, groups=1)
+        extra_cost = extra_cost*(boundary_types == 0)
+        C = C + extra_cost
+        C = torch.reshape(C, V.shape)
+
         X = torch.stack([V, boundary_types, boundary_conditions, C], axis=num_dims)
         intermediate = [C, boundary_types, boundary_conditions]
 
@@ -50,15 +58,16 @@ class LaplacianSolver(Function):
 
         dL_boundary_types = torch.zeros(grid_size, dtype=torch.float32, device='cuda')
         dL_boundary_conditions = torch.zeros(grid_size, dtype=torch.float32, device='cuda')
-        return dL_dV_i, dL_dC, dL_boundary_types, dL_boundary_conditions
+        return dL_dV_i, dL_dC, dL_boundary_types, dL_boundary_conditions, None
 
 
 class LaplaceNet(nn.Module):
-    def __init__(self, res, max_val, cost_scale):
+    def __init__(self, res, max_val, cost_scale, obj_width):
         super(LaplaceNet, self).__init__()
         self.max_val = max_val
         self.cost_scale = cost_scale
         self.res = res
+        self.width = obj_width
         self.C = nn.Parameter(self.cost_scale * torch.ones(self.res, self.res, dtype=torch.float32, device='cuda'))
         layer = LaplacianSolver()
         self.solve = layer.apply
@@ -67,7 +76,7 @@ class LaplaceNet(nn.Module):
         obj_inds = boundary_types > 0
         x[obj_inds] = boundary_conditions[obj_inds]
         C_pos = F.relu(self.C)
-        out = self.solve(x, C_pos, boundary_types, boundary_conditions)
+        out = self.solve(x, C_pos, boundary_types, boundary_conditions, self.width)
         out[out >= self.max_val] = .95 * self.max_val
         out[obj_inds] = boundary_conditions[obj_inds]
 
@@ -76,8 +85,9 @@ class LaplaceNet(nn.Module):
 
 def compute_loss(pred, target, C_pos, cost_scale):
     loss = torch.sum((pred - target) ** 2) / pred.numel()
-    min_val = .1 * cost_scale
-    if torch.any(C_pos[C_pos < min_val]):
-        loss = loss + 50 * torch.sum((C_pos[C_pos < min_val] - .1 * cost_scale) ** 2) / torch.sum(
+    # loss = torch.sum(abs(pred - target) ) / pred.numel()
+    min_val = cost_scale
+    if torch.any(C_pos < min_val):
+        loss = loss + 100 * torch.sum((C_pos[C_pos < min_val] - min_val) ** 2) / torch.sum(
             C_pos[C_pos < min_val])
     return loss
