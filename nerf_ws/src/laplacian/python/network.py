@@ -39,7 +39,7 @@ class LaplacianSolver(Function):
             else:
                 return T[:, :, :, 0].clone()
 
-        for i in range(20):
+        for i in range(5):
             intermediate.append(extract_value(X))
             laplacian_solver.forward(X, indexes)
             ctx.save_for_backward(*intermediate)
@@ -106,7 +106,6 @@ class LaplaceNet(nn.Module):
 
 def compute_loss(pred, target, C_pos, cost_scale):
     loss = torch.sum((pred - target) ** 2) / pred.numel()
-    # loss = torch.sum(abs(pred - target) ) / pred.numel()
     min_val = cost_scale
     if torch.any(C_pos < min_val):
         loss = loss + 100 * torch.sum((C_pos[C_pos < min_val] - min_val) ** 2) / torch.sum(

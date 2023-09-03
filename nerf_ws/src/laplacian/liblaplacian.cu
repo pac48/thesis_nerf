@@ -11,8 +11,8 @@ namespace internal {
         constexpr int stride = 4;
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         int ind_x = idx % x_dims;
-        int ind_y = idx / x_dims;
-        int ind_z = ind_y / (y_dims);
+        int ind_y = (idx / x_dims) % y_dims;
+        int ind_z = idx / (x_dims * y_dims);
 
         if (ind_x > 0 && ind_x < x_dims - 1 && ind_y > 0 && ind_y < y_dims - 1 &&
             (z_dims == 1 || (ind_z > 0 && ind_z < z_dims - 1))) {
@@ -53,9 +53,8 @@ namespace internal {
         constexpr int stride = 4;
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         int ind_x = idx % x_dims;
-        int ind_y = idx / x_dims;
-        int ind_z = ind_y / (y_dims);
-
+        int ind_y = (idx / x_dims) % y_dims;
+        int ind_z = idx / (x_dims * y_dims);
 
         if (ind_x > 0 && ind_x < x_dims - 1 && ind_y > 0 && ind_y < y_dims - 1 &&
             (z_dims == 1 || (ind_z > 0 && ind_z < z_dims - 1))) {
@@ -116,7 +115,7 @@ namespace internal {
         } else {
             std::stringstream strstr;
             strstr << "only 2d and 3d is supported" << std::endl;
-            throw strstr.str();
+            throw std::runtime_error(strstr.str());
         }
 
         cudaError_t error = cudaGetLastError();
@@ -127,7 +126,7 @@ namespace internal {
             strstr << "dimBlock: " << blockSize << std::endl;
             strstr << "dimGrid: " << gridSize << std::endl;
             strstr << cudaGetErrorString(error);
-            throw strstr.str();
+            throw std::runtime_error(strstr.str());
         }
     }
 
@@ -152,9 +151,8 @@ namespace internal {
         } else {
             std::stringstream strstr;
             strstr << "only 2d and 3d is supported" << std::endl;
-            throw strstr.str();
+            throw std::runtime_error(strstr.str());
         }
-
 
         cudaError_t error = cudaGetLastError();
         if (error != cudaSuccess) {
@@ -164,7 +162,7 @@ namespace internal {
             strstr << "dimBlock: " << blockSize << std::endl;
             strstr << "dimGrid: " << gridSize << std::endl;
             strstr << cudaGetErrorString(error);
-            throw strstr.str();
+            throw std::runtime_error(strstr.str());
         }
     }
 
