@@ -2,9 +2,11 @@ import itertools
 import torch
 from torch.autograd import Function
 from torch.autograd.function import once_differentiable
+from torch.autograd import grad
 import torch.nn as nn
 import torch.utils.data
 import torch.nn.functional as F
+from gridsample_grad2.cuda_gridsample import grid_sample_2d, grid_sample_3d # F.grid_sample does not support gradient calcuation
 import laplacian_py.laplacian_solver_py as laplacian_solver
 
 
@@ -111,3 +113,22 @@ def compute_loss(pred, target, C_pos, cost_scale):
         loss = loss + 100 * torch.sum((C_pos[C_pos < min_val] - min_val) ** 2) / torch.sum(
             C_pos[C_pos < min_val])
     return loss
+
+
+def calculate_gradient(grid_pred, query):
+    """ calculate_gradient: calculate gradient of field at query point
+    grid_pred : grid of predictions
+    query: point to interpolate
+    assumes axis_values are in [-1 1]
+    """
+    # mode='bilinear is required
+    # out = F.grid_sample(grid_pred, query, mode='bilinear', padding_mode='zeros')
+    if len(grid_pred) == 5:
+        out = grid_sample_3d(grid_pred, query, padding_mode='border', align_corners=True)
+    else:
+        out = grid_sample_2d(grid_pred, query, padding_mode='border', align_corners=True)
+
+    dL_dout = torch.ones(out.shape, dtype=torch.float32, device='cuda')
+    J1, J2 = grad([out], [grid_pred, query], grad_outputs=dL_dout, create_graph=True)
+
+    return J2
