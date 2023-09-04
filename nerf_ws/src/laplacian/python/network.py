@@ -6,7 +6,8 @@ from torch.autograd import grad
 import torch.nn as nn
 import torch.utils.data
 import torch.nn.functional as F
-from gridsample_grad2.cuda_gridsample import grid_sample_2d, grid_sample_3d # F.grid_sample does not support gradient calcuation
+from gridsample_grad2.cuda_gridsample import grid_sample_2d, grid_sample_3d
+# F.grid_sample does not support gradient calcuation
 import laplacian_py.laplacian_solver_py as laplacian_solver
 
 
@@ -81,6 +82,7 @@ class LaplaceNet(nn.Module):
         self.res = res
         self.width = obj_width
         self.num_dims = len(self.res)
+        self.V = max_val * torch.ones(res, dtype=torch.float32, device='cuda')
         dims_linear = torch.zeros(self.num_dims, dtype=torch.int32)
         base = 1
         for ind, d in enumerate(res):
@@ -94,16 +96,24 @@ class LaplaceNet(nn.Module):
         layer = LaplacianSolver()
         self.solve = layer.apply
 
-    def forward(self, V, boundary_types, boundary_conditions):
-        V = V.clone()
+    def forward(self, x, boundary_types, boundary_conditions):
         obj_inds = boundary_types > 0
-        V[obj_inds] = boundary_conditions[obj_inds]
+        self.V[obj_inds] = boundary_conditions[obj_inds]
         C_pos = F.relu(self.C)
-        out = self.solve(V, C_pos, boundary_types, boundary_conditions, self.indexes, self.width)
+        out = self.solve(self.V, C_pos, boundary_types, boundary_conditions, self.indexes, self.width)
         out[out >= self.max_val] = .95 * self.max_val
         out[obj_inds] = boundary_conditions[obj_inds]
-
+        self.V = out.detach()
+        out = interpolate_prediction(out.unsqueeze(axis=0).unsqueeze(axis=0), x)
+        out = out.squeeze().squeeze()
         return out, C_pos
+
+
+def interpolate_prediction(grid_pred, query):
+    if len(grid_pred) == 5:
+        return grid_sample_3d(grid_pred, query, padding_mode='border', align_corners=True)
+    else:
+        return grid_sample_2d(grid_pred, query, padding_mode='border', align_corners=True)
 
 
 def compute_loss(pred, target, C_pos, cost_scale):
@@ -123,11 +133,7 @@ def calculate_gradient(grid_pred, query):
     """
     # mode='bilinear is required
     # out = F.grid_sample(grid_pred, query, mode='bilinear', padding_mode='zeros')
-    if len(grid_pred) == 5:
-        out = grid_sample_3d(grid_pred, query, padding_mode='border', align_corners=True)
-    else:
-        out = grid_sample_2d(grid_pred, query, padding_mode='border', align_corners=True)
-
+    out = interpolate_prediction(grid_pred, query)
     dL_dout = torch.ones(out.shape, dtype=torch.float32, device='cuda')
     J1, J2 = grad([out], [grid_pred, query], grad_outputs=dL_dout, create_graph=True)
 

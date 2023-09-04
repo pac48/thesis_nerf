@@ -17,14 +17,15 @@ namespace internal {
         if (ind_x > 0 && ind_x < x_dims - 1 && ind_y > 0 && ind_y < y_dims - 1 &&
             (z_dims == 1 || (ind_z > 0 && ind_z < z_dims - 1))) {
             const int index_offset = stride * idx;
-            double offset = 0;
+            double offset = 1E200;;
 
 #pragma unroll
             for (int i = 0; i < SIZE; i++) {
                 const int index = index_offset + stride * indexes_ptr[i];
-                offset += X_ptr[index];
+//                offset += X_ptr[index];
+                offset = min(offset, X_ptr[index]);
             }
-            offset = offset / SIZE;
+//            offset = offset / SIZE;
 
             double numerator = 0;
             double denominator = 0;
@@ -65,13 +66,14 @@ namespace internal {
                 dL_dC_ptr[idx] = dout_dC * dL_dout_ptr[idx];
 
                 const int index_offset = stride * idx;
-                double offset = 0;
+                double offset = 1E200;
 #pragma unroll
                 for (int i = 0; i < SIZE; i++) {
                     const int index = index_offset + stride * indexes_ptr[i];
-                    offset += X_ptr[index];
+//                    offset += X_ptr[index];
+                    offset = min(offset, X_ptr[index]);
                 }
-                offset = offset / SIZE;
+//                offset = offset / SIZE;
 
                 double dL_dV_ptr_idx = 0;
                 double common_sum = 0;
