@@ -82,7 +82,7 @@ class LaplaceNet(nn.Module):
         self.res = res
         self.width = obj_width
         self.num_dims = len(self.res)
-        self.V = max_val * torch.ones(res, dtype=torch.float32, device='cuda')
+        self.V = max_val * torch.ones(self.res, dtype=torch.float32, device='cuda')
         dims_linear = torch.zeros(self.num_dims, dtype=torch.int32)
         base = 1
         for ind, d in enumerate(res):
@@ -96,17 +96,21 @@ class LaplaceNet(nn.Module):
         layer = LaplacianSolver()
         self.solve = layer.apply
 
+    def reset(self):
+        self.V = self.max_val * torch.ones(self.res, dtype=torch.float32, device='cuda')
+
+
     def forward(self, x, boundary_types, boundary_conditions):
         obj_inds = boundary_types > 0
         self.V[obj_inds] = boundary_conditions[obj_inds]
-        C_pos = F.relu(self.C)
+        C_pos = F.relu(self.C) + self.cost_scale
         out = self.solve(self.V, C_pos, boundary_types, boundary_conditions, self.indexes, self.width)
         out[out >= self.max_val] = .95 * self.max_val
         out[obj_inds] = boundary_conditions[obj_inds]
         self.V = out.detach()
         out = interpolate_prediction(out.unsqueeze(axis=0).unsqueeze(axis=0), x)
         out = out.squeeze().squeeze()
-        return out, C_pos
+        return out, self.C
 
 
 def interpolate_prediction(grid_pred, query):
@@ -116,12 +120,13 @@ def interpolate_prediction(grid_pred, query):
         return grid_sample_2d(grid_pred, query, padding_mode='border', align_corners=True)
 
 
-def compute_loss(pred, target, C_pos, cost_scale):
+def compute_loss(pred, target, C, cost_scale):
     loss = torch.sum((pred - target) ** 2) / pred.numel()
     min_val = cost_scale
-    if torch.any(C_pos < min_val):
-        loss = loss + 100 * torch.sum((C_pos[C_pos < min_val] - min_val) ** 2) / torch.sum(
-            C_pos[C_pos < min_val])
+    neg_inds = C < 0
+    if torch.any(neg_inds):
+        loss = loss + .0001 * torch.sum(abs(C[neg_inds]))  # / torch.sum(neg_inds)
+        # print(f"reg: {.0001 * torch.sum(abs(C[neg_inds]))}")
     return loss
 
 
@@ -135,6 +140,6 @@ def calculate_gradient(grid_pred, query):
     # out = F.grid_sample(grid_pred, query, mode='bilinear', padding_mode='zeros')
     out = interpolate_prediction(grid_pred, query)
     dL_dout = torch.ones(out.shape, dtype=torch.float32, device='cuda')
-    J1, J2 = grad([out], [grid_pred, query], grad_outputs=dL_dout, create_graph=True)
+    J1, J2 = grad([out], [grid_pred, query], grad_outputs=dL_dout, create_graph=True, retain_graph=True)
 
-    return J2
+    return J1, J2
