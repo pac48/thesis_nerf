@@ -214,8 +214,6 @@ def demo(args):
     rgb_points = np.hstack((points, colors))
     send_point_cloud(rgb_points, has_alpha=False, wait_time=3)
     save_obj(points)
-    from pykdtree.kdtree import KDTree
-    KDTree
 
 
 if __name__ == '__main__':

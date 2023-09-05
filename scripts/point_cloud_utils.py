@@ -9,6 +9,8 @@ import numpy as np
 
 
 def send_point_cloud(rgba_points, has_alpha=True, topic='point_cloud', wait_time=1):
+    if not rclpy.ok():
+        rclpy.init()
     node = Node('nerf_node')
     pub = node.create_publisher(PointCloud2, topic, 10)
 
@@ -33,7 +35,10 @@ def send_point_cloud(rgba_points, has_alpha=True, topic='point_cloud', wait_time
     z_field.offset = 8
 
     color_field = PointField()
-    color_field.name = "rgb"
+    if has_alpha:
+        color_field.name = "rgba"
+    else:
+        color_field.name = "rgb"
     color_field.count = 1
     color_field.datatype = PointField.UINT32
     color_field.offset = 12
@@ -48,25 +53,27 @@ def send_point_cloud(rgba_points, has_alpha=True, topic='point_cloud', wait_time
     format_string = ''
     data_list = []
     for i in range(0, rgba_points.shape[0]):
-        if has_alpha:
-            alpha = int(255 * rgba_points[i, 6])
-            if alpha > 125:
-                alpha = alpha * (alpha > 125)
-        else:
-            alpha = 255
+        # if has_alpha:
+        #     alpha = int(255 * rgba_points[i, 6])
+        #     alpha = 255 * (alpha > 100)
+        # else:
+        #     alpha = 255
+        alpha = int(255 * rgba_points[i, 6])
         entry = [float(rgba_points[i, 0]), float(rgba_points[i, 1]), float(rgba_points[i, 2]),
                  int(255 * rgba_points[i, 5]),
                  int(255 * rgba_points[i, 4]), int(255 * rgba_points[i, 3]), int(alpha)]
 
-        format_string += 'f' * 3 + 'B' * 4
-        data_list.extend(entry)
+        if alpha > 100:
+            format_string += 'f' * 3 + 'B' * 4
+            data_list.extend(entry)
 
     msg.width = len(data_list) // 7
     msg.row_step = msg.width * msg.point_step
     tmp = struct.pack(format_string, *data_list)
     msg.data = tmp
-    time.sleep(wait_time)
-    pub.publish(msg)
+    for i in range(3):
+        time.sleep(wait_time / 3)
+        pub.publish(msg)
 
 
 def quaternion_rotation_matrix(quat):

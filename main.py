@@ -36,8 +36,8 @@ def get_images():
 
     tf_buffer = Buffer()
     tf_listener = TransformListener(tf_buffer, node)
-    # num_cams = 12
-    num_cams = 5
+    num_cams = 12
+    # num_cams = 5
     for i in range(1, num_cams + 1):
         if i == 1:
             node.create_subscription(CameraInfo, '/camera/color/camera_info_1', info_callback, 10)

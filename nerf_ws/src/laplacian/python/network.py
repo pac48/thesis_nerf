@@ -140,7 +140,6 @@ def interpolate_prediction(grid_pred, query):
 
 def compute_loss(pred, target, C, cost_scale):
     loss = torch.sum((pred - target) ** 2) / pred.numel()
-    min_val = cost_scale
     neg_inds = C < 0
     if torch.any(neg_inds):
         loss = loss + .00000001 * torch.sum(abs(C[neg_inds]))  # / torch.sum(neg_inds)
