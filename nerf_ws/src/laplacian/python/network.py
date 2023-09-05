@@ -99,7 +99,6 @@ class LaplaceNet(nn.Module):
     def reset(self):
         self.V = self.max_val * torch.ones(self.res, dtype=torch.float32, device='cuda')
 
-
     def forward(self, x, boundary_types, boundary_conditions):
         obj_inds = boundary_types > 0
         self.V[obj_inds] = boundary_conditions[obj_inds]
@@ -108,13 +107,27 @@ class LaplaceNet(nn.Module):
         out[out >= self.max_val] = .95 * self.max_val
         out[obj_inds] = boundary_conditions[obj_inds]
         self.V = out.detach()
+
+        Jxyz = [torch.diff(out, dim=2, prepend=out[:, :, 0].unsqueeze(axis=2)),
+                torch.diff(out, dim=1, prepend=out[:, 0, :].unsqueeze(axis=1)),
+                torch.diff(out, dim=0, prepend=out[0, :, :].unsqueeze(axis=0))]
+
         out = interpolate_prediction(out.unsqueeze(axis=0).unsqueeze(axis=0), x)
         out = out.squeeze().squeeze()
-        return out, self.C
+
+        tmp = []
+        for val in Jxyz:
+            val_tmp = interpolate_prediction(val.unsqueeze(axis=0).unsqueeze(axis=0), x)
+            while len(val_tmp.shape) > 3:
+                val_tmp = val_tmp.squeeze(axis=0)
+            tmp.append(val_tmp)
+        J = torch.stack(tmp, dim=3)
+
+        return out, self.C, J
 
 
 def interpolate_prediction(grid_pred, query):
-    if len(grid_pred) == 5:
+    if len(grid_pred.shape) == 5:
         return grid_sample_3d(grid_pred, query, padding_mode='border', align_corners=True)
     else:
         return grid_sample_2d(grid_pred, query, padding_mode='border', align_corners=True)
@@ -125,7 +138,7 @@ def compute_loss(pred, target, C, cost_scale):
     min_val = cost_scale
     neg_inds = C < 0
     if torch.any(neg_inds):
-        loss = loss + .0001 * torch.sum(abs(C[neg_inds]))  # / torch.sum(neg_inds)
+        loss = loss + .00000001 * torch.sum(abs(C[neg_inds]))  # / torch.sum(neg_inds)
         # print(f"reg: {.0001 * torch.sum(abs(C[neg_inds]))}")
     return loss
 
@@ -138,6 +151,11 @@ def calculate_gradient(grid_pred, query):
     """
     # mode='bilinear is required
     # out = F.grid_sample(grid_pred, query, mode='bilinear', padding_mode='zeros')
+    if len(grid_pred.shape) == 5:
+        grid_pred = grid_pred.permute([0, 1, 4, 3, 2])
+    else:
+        grid_pred = grid_pred.permute([0, 3, 2, 1])
+
     out = interpolate_prediction(grid_pred, query)
     dL_dout = torch.ones(out.shape, dtype=torch.float32, device='cuda')
     J1, J2 = grad([out], [grid_pred, query], grad_outputs=dL_dout, create_graph=True, retain_graph=True)

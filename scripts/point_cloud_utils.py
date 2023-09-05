@@ -8,7 +8,7 @@ import struct
 import numpy as np
 
 
-def send_point_cloud(rgba_points, has_alpha=True, topic='point_cloud'):
+def send_point_cloud(rgba_points, has_alpha=True, topic='point_cloud', wait_time=1):
     node = Node('nerf_node')
     pub = node.create_publisher(PointCloud2, topic, 10)
 
@@ -65,10 +65,8 @@ def send_point_cloud(rgba_points, has_alpha=True, topic='point_cloud'):
     msg.row_step = msg.width * msg.point_step
     tmp = struct.pack(format_string, *data_list)
     msg.data = tmp
-    for i in range(1000):
-        time.sleep(1/1000)
-    for i in range(1):
-        pub.publish(msg)
+    time.sleep(wait_time)
+    pub.publish(msg)
 
 
 def quaternion_rotation_matrix(quat):
