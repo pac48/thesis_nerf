@@ -83,6 +83,7 @@ class LaplaceNet(nn.Module):
         self.width = obj_width
         self.num_dims = len(self.res)
         self.V = max_val * torch.ones(self.res, dtype=torch.float32, device='cuda')
+        self.obj_inds = None
         dims_linear = torch.zeros(self.num_dims, dtype=torch.int32)
         base = 1
         for ind, d in enumerate(res):
@@ -98,30 +99,34 @@ class LaplaceNet(nn.Module):
 
     def reset(self):
         self.V = self.max_val * torch.ones(self.res, dtype=torch.float32, device='cuda')
+        self.obj_inds = None
 
-    def forward(self, x, boundary_types, boundary_conditions):
-        obj_inds = boundary_types > 0
-        self.V[obj_inds] = boundary_conditions[obj_inds]
+    def forward(self, x, boundary_types, boundary_conditions, calc_gradient=False):
+        if self.obj_inds is None:
+            self.obj_inds = boundary_types > 0
+            self.V[self.obj_inds] = boundary_conditions[self.obj_inds]
         C_pos = F.relu(self.C) + self.cost_scale
         out = self.solve(self.V, C_pos, boundary_types, boundary_conditions, self.indexes, self.width)
-        out[out >= self.max_val] = .95 * self.max_val
-        out[obj_inds] = boundary_conditions[obj_inds]
+        # out[out >= self.max_val] = .95 * self.max_val
+        # out[obj_inds] = boundary_conditions[obj_inds]
         self.V = out.detach()
-
-        Jxyz = [torch.diff(out, dim=2, prepend=out[:, :, 0].unsqueeze(axis=2)),
-                torch.diff(out, dim=1, prepend=out[:, 0, :].unsqueeze(axis=1)),
-                torch.diff(out, dim=0, prepend=out[0, :, :].unsqueeze(axis=0))]
+        J = None
+        if calc_gradient:
+            Jxyz = [torch.diff(out, dim=2, prepend=out[:, :, 0].unsqueeze(axis=2)),
+                    torch.diff(out, dim=1, prepend=out[:, 0, :].unsqueeze(axis=1)),
+                    torch.diff(out, dim=0, prepend=out[0, :, :].unsqueeze(axis=0))]
 
         out = interpolate_prediction(out.unsqueeze(axis=0).unsqueeze(axis=0), x)
         out = out.squeeze().squeeze()
 
-        tmp = []
-        for val in Jxyz:
-            val_tmp = interpolate_prediction(val.unsqueeze(axis=0).unsqueeze(axis=0), x)
-            while len(val_tmp.shape) > 3:
-                val_tmp = val_tmp.squeeze(axis=0)
-            tmp.append(val_tmp)
-        J = torch.stack(tmp, dim=3)
+        if calc_gradient:
+            tmp = []
+            for val in Jxyz:
+                val_tmp = interpolate_prediction(val.unsqueeze(axis=0).unsqueeze(axis=0), x)
+                while len(val_tmp.shape) > 3:
+                    val_tmp = val_tmp.squeeze(axis=0)
+                tmp.append(val_tmp)
+            J = torch.stack(tmp, dim=3)
 
         return out, self.C, J
 
