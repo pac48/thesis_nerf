@@ -76,6 +76,38 @@ def send_point_cloud(rgba_points, has_alpha=True, topic='point_cloud', wait_time
         pub.publish(msg)
 
 
+def rotation_matrix_quaternion(R):
+    # q0 = qw
+    t = np.matrix.trace(R)
+    q = np.asarray([0.0, 0.0, 0.0, 0.0], dtype=np.float64)
+
+    if (t > 0):
+        t = np.sqrt(t + 1)
+        q[3] = 0.5 * t
+        t = 0.5 / t
+        q[0] = (R[2, 1] - R[1, 2]) * t
+        q[1] = (R[0, 2] - R[2, 0]) * t
+        q[2] = (R[1, 0] - R[0, 1]) * t
+
+    else:
+        i = 0
+        if (R[1, 1] > R[0, 0]):
+            i = 1
+        if (R[2, 2] > R[i, i]):
+            i = 2
+        j = (i + 1) % 3
+        k = (j + 1) % 3
+
+        t = np.sqrt(R[i, i] - R[j, j] - R[k, k] + 1)
+        q[i] = 0.5 * t
+        t = 0.5 / t
+        q[3] = (R[k, j] - R[j, k]) * t
+        q[j] = (R[j, i] + R[i, j]) * t
+        q[k] = (R[k, i] + R[i, k]) * t
+
+    return q
+
+
 def quaternion_rotation_matrix(quat):
     q0 = quat.w
     q1 = quat.x

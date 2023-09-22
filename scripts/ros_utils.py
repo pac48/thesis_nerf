@@ -5,7 +5,9 @@ import numpy as np
 from tf2_ros.transform_listener import TransformListener
 from tf2_ros.buffer import Buffer
 from tf2_ros import TransformException
-from scripts.point_cloud_utils import quaternion_rotation_matrix
+from tf2_ros import TransformBroadcaster
+from geometry_msgs.msg import TransformStamped
+from scripts.point_cloud_utils import quaternion_rotation_matrix, rotation_matrix_quaternion
 
 
 def get_image_tf_pair(image_topics, tf_names):
@@ -45,6 +47,39 @@ def get_image_tf_pair(image_topics, tf_names):
     transforms = [tf_map[key] for key in tf_map]
 
     return imgs, transforms
+
+
+def send_tf(tf_name, transform):
+    if not rclpy.ok():
+        rclpy.init()
+    node = Node('nerf_node')
+
+    tf_broadcaster = TransformBroadcaster(node)
+    t = TransformStamped()
+
+    # Read message content and assign it to
+    # corresponding tf variables
+    t.header.stamp = node.get_clock().now().to_msg()
+    t.header.frame_id = 'unity'
+    t.child_frame_id = tf_name
+
+    # Turtle only exists in 2D, thus we get x and y translation
+    # coordinates from the message and set the z coordinate to 0
+    t.transform.translation.x = transform[0, 3]
+    t.transform.translation.y = transform[1, 3]
+    t.transform.translation.z = transform[2, 3]
+
+    # For the same reason, turtle can only rotate around one axis
+    # and this why we set rotation in x and y to 0 and obtain
+    # rotation in z axis from the message
+    q = rotation_matrix_quaternion(transform[:3, :3].transpose())
+    t.transform.rotation.x = q[0]
+    t.transform.rotation.y = q[1]
+    t.transform.rotation.z = q[2]
+    t.transform.rotation.w = q[3]
+
+    # Send the transformation
+    tf_broadcaster.sendTransform(t)
 
 
 def ros_tf_to_matrix(msg):
