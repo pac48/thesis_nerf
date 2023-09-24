@@ -17,7 +17,7 @@
 -->
 
 <robot xmlns:xacro="http://wiki.ros.org/xacro">
-  <xacro:include filename="$(find zed_wrapper)/urdf/include/materials.urdf.xacro" />
+  <xacro:include filename="$(find zed_description)/urdf/include/materials.urdf.xacro" />
   <xacro:property name="M_PI"     value="3.1415926535897931" />
 
   <!--
@@ -109,7 +109,7 @@
     <joint name="${name}_april_tag_joint" type="fixed">
       <parent link="${name}_april_tag"/>
       <child link="${parent}"/>
-      <origin xyz="-0.00682 -0.007682 0.029492" rpy="0.0 -3.115 -1.57" />
+      <origin xyz="-0.00682 -0.007682 0.029492" rpy="0.0 -3.11 -1.56" />
     </joint>
     
     <!-- Left Camera -->

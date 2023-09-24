@@ -28,7 +28,7 @@
   <xacro:arg name="cam_yaw"       default="0.0" />
   <xacro:arg name="gnss_frame"    default="" />
 
-  <xacro:include filename="$(find zed_wrapper)/urdf/zed_macro.urdf.xacro" />
+  <xacro:include filename="$(find zed_description)/urdf/zed_macro.urdf.xacro" />
   <xacro:zed_camera name="$(arg camera_name)" model="$(arg camera_model)" parent="$(arg base_frame)">
     <origin 
       xyz="$(arg cam_pos_x) $(arg cam_pos_y) $(arg cam_pos_z)" 

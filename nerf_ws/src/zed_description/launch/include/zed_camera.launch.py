@@ -35,14 +35,14 @@ from launch_ros.actions import Node
 
 # ZED Configurations to be loaded by ZED Node
 default_config_common = os.path.join(
-    get_package_share_directory('zed_wrapper'),
+    get_package_share_directory('zed_description'),
     'config',
     'common.yaml'
 )
 
 # URDF/xacro file to be loaded by the Robot State Publisher node
 default_xacro_path = os.path.join(
-    get_package_share_directory('zed_wrapper'),
+    get_package_share_directory('zed_description'),
     'urdf',
     'zed_descr.urdf.xacro'
 )
@@ -57,7 +57,7 @@ def parse_array_param(param):
 
 
 def launch_setup(context, *args, **kwargs):
-    wrapper_dir = get_package_share_directory('zed_wrapper')
+    wrapper_dir = get_package_share_directory('zed_description')
 
     # Launch configuration variables
     svo_path = LaunchConfiguration('svo_path')
@@ -92,7 +92,7 @@ def launch_setup(context, *args, **kwargs):
         camera_name_val = camera_model_val
 
     config_camera_path = os.path.join(
-        get_package_share_directory('zed_wrapper'),
+        get_package_share_directory('zed_description'),
         'config',
         camera_model_val + '.yaml'
     )
