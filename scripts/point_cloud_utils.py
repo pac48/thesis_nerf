@@ -8,7 +8,7 @@ import struct
 import numpy as np
 
 
-def send_point_cloud(rgba_points, has_alpha=True, topic='point_cloud', wait_time=1):
+def send_point_cloud(rgba_points, has_alpha=True, topic='point_cloud', wait_time=1, base_frame="unity"):
     if not rclpy.ok():
         rclpy.init()
     node = Node('nerf_node')
@@ -45,7 +45,7 @@ def send_point_cloud(rgba_points, has_alpha=True, topic='point_cloud', wait_time
 
     msg.height = 1
     msg.header.stamp = node.get_clock().now().to_msg()
-    msg.header.frame_id = "unity"
+    msg.header.frame_id = base_frame
 
     msg.fields = [x_field, y_field, z_field, color_field]
     msg.point_step = 16

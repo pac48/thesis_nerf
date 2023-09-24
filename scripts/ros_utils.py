@@ -49,7 +49,7 @@ def get_image_tf_pair(image_topics, tf_names):
     return imgs, transforms
 
 
-def send_tf(tf_name, transform):
+def send_tf(tf_name, transform, base_frame='unity'):
     if not rclpy.ok():
         rclpy.init()
     node = Node('nerf_node')
@@ -60,7 +60,7 @@ def send_tf(tf_name, transform):
     # Read message content and assign it to
     # corresponding tf variables
     t.header.stamp = node.get_clock().now().to_msg()
-    t.header.frame_id = 'unity'
+    t.header.frame_id = base_frame
     t.child_frame_id = tf_name
 
     # Turtle only exists in 2D, thus we get x and y translation
