@@ -75,9 +75,9 @@ if __name__ == "__main__":
         # x_segments = np.linspace(min_val[0], max_val[0], 64)
         # y_segments = np.linspace(min_val[1], max_val[1], 64)
         # z_segments = np.linspace(min_val[2], max_val[2], 64)
-        x_segments = np.linspace(.25, .75, int(256*(.75-.25)))
-        y_segments = np.linspace(.45, .6, int(256*(.6-.45)))
-        z_segments = np.linspace(.4, .6, int(256*(.6-.4)))
+        x_segments = np.linspace(.25, .75, 3*int(256*(.75-.25)))
+        y_segments = np.linspace(.45, .6, 3*int(256*(.6-.45)))
+        z_segments = np.linspace(.4, .6, 3*int(256*(.6-.4)))
         x, y, z = np.meshgrid(x_segments, y_segments, z_segments, indexing='ij')
         points = np.stack((x.flatten(), y.flatten(), z.flatten()), axis=1)
         points = points[0:256 * (points.shape[0] // 256), :]
@@ -106,7 +106,7 @@ if __name__ == "__main__":
         points = np.vstack((points[:, 0], points[:, 2], 1 - points[:, 1])).T
         points = points * (max_val - min_val) + min_val
         points = 2 * points
-        send_point_cloud(np.hstack((points, out)))
+        send_point_cloud(np.hstack((points, out)), has_alpha=False)
 
     # if False:
     #     os.makedirs(os.path.dirname(args.save_snapshot), exist_ok=True)

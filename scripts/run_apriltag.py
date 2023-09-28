@@ -59,7 +59,8 @@ def get_disparity(model_stereo, left, right):
 
     # fixed_inference_size = [val // 2 for val in nearest_size]
     #     print(fixed_inference_size)
-    fixed_inference_size = [544, 960]
+    # fixed_inference_size = [544, 960]
+    fixed_inference_size = [480, 640]
     #     fixed_inference_size = None
 
     # resize to nearest size or specified size
@@ -98,12 +99,12 @@ def get_points(depth, fx, fy, cx, cy, width, height):
     # y_scale = (height - cy + 32) / height
 
     x_scale = (width - cx) / width
-    y_scale = (height - cy-10) / height
+    y_scale = (height - cy - 10) / height
     [Xgrid, Ygrid] = np.meshgrid(np.linspace(-(1.0 - x_scale) * width, x_scale * width, width),
                                  np.linspace(-(1.0 - y_scale) * height, y_scale * height, height))
     X = (Xgrid) * Z / fx  # / (fx / width)
     Y = (Ygrid) * Z / fy  # / (fy / height)
-    points = np.stack([-X, Y, -Z], axis=2)  # + 0.025/1000
+    points = np.stack([X, Y, Z], axis=2)  # + 0.025/1000
     points = np.reshape(points, (-1, 3))
 
     return points
@@ -171,37 +172,38 @@ def send_model_point_cloud(model_stereo, zed_param):
     stereo_colors = np.reshape(tmp, (-1, 3))
     stereo_colors = stereo_colors[:, [2, 1, 0]]
     stereo_colors = np.hstack([stereo_colors, np.ones((stereo_colors.shape[0], 1))])
-    send_point_cloud(np.hstack((stereo_points, stereo_colors)), has_alpha=False, topic='point_cloud',
-                     base_frame='zed2i_right_camera_optical_frame')
+    points = np.hstack((stereo_points, stereo_colors))
+    send_point_cloud(points[::2, :], has_alpha=False, topic='point_cloud',
+                     base_frame='zed2i_right_camera_optical_frame', wait_time=.1)
 
 
-init = sl.InitParameters(depth_mode=sl.DEPTH_MODE.ULTRA,
-                         coordinate_units=sl.UNIT.METER,
-                         coordinate_system=sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP)
+if __name__ == "__main__":
+    init = sl.InitParameters(depth_mode=sl.DEPTH_MODE.ULTRA,
+                             coordinate_units=sl.UNIT.METER,
+                             coordinate_system=sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP)
 
-init.camera_resolution = sl.RESOLUTION.HD2K
-zed = sl.Camera()
-zed.close()
-status = zed.open(init)
-if status != sl.ERROR_CODE.SUCCESS:
-    print(repr(status))
-    exit()
+    init.camera_resolution = sl.RESOLUTION.HD2K
+    zed = sl.Camera()
+    zed.close()
+    status = zed.open(init)
+    if status != sl.ERROR_CODE.SUCCESS:
+        print(repr(status))
+        exit()
 
-zed.set_camera_settings(sl.VIDEO_SETTINGS.EXPOSURE, 60)
-zed.set_camera_settings(sl.VIDEO_SETTINGS.GAIN, 0)
-zed.set_camera_settings(sl.VIDEO_SETTINGS.BRIGHTNESS, 5)
-zed.set_camera_settings(sl.VIDEO_SETTINGS.CONTRAST, 2)
+    zed.set_camera_settings(sl.VIDEO_SETTINGS.EXPOSURE, 60)
+    zed.set_camera_settings(sl.VIDEO_SETTINGS.GAIN, 0)
+    zed.set_camera_settings(sl.VIDEO_SETTINGS.BRIGHTNESS, 5)
+    zed.set_camera_settings(sl.VIDEO_SETTINGS.CONTRAST, 2)
 
-zed_param = zed.get_camera_information()
+    zed_param = zed.get_camera_information()
 
-# res = sl.Resolution()
-# res.width = 720
-# res.height = 404
-# point_cloud = sl.Mat(res.width, res.height, sl.MAT_TYPE.F32_C4, sl.MEM.CPU)
-# while True:
-#     send_zed_point_cloud(point_cloud, res)
+    # res = sl.Resolution()
+    # res.width = 720
+    # res.height = 404
+    # point_cloud = sl.Mat(res.width, res.height, sl.MAT_TYPE.F32_C4, sl.MEM.CPU)
+    # while True:
+    #     send_zed_point_cloud(point_cloud, res)
 
-
-stereo_model = load_model()
-while True:
-    send_model_point_cloud(stereo_model, zed_param)
+    stereo_model = load_model()
+    while True:
+        send_model_point_cloud(stereo_model, zed_param)

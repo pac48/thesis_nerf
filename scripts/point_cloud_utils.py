@@ -50,7 +50,7 @@ def send_point_cloud(rgba_points, has_alpha=True, topic='point_cloud', wait_time
     msg.fields = [x_field, y_field, z_field, color_field]
     msg.point_step = 16
 
-    format_string = ''
+    format_string = []
     data_list = []
     for i in range(0, rgba_points.shape[0]):
         # if has_alpha:
@@ -64,9 +64,10 @@ def send_point_cloud(rgba_points, has_alpha=True, topic='point_cloud', wait_time
                  int(255 * rgba_points[i, 4]), int(255 * rgba_points[i, 3]), int(alpha)]
 
         if alpha > 100:
-            format_string += 'f' * 3 + 'B' * 4
+            format_string.append('f' * 3 + 'B' * 4)
             data_list.extend(entry)
 
+    format_string = ''.join(format_string)
     msg.width = len(data_list) // 7
     msg.row_step = msg.width * msg.point_step
     tmp = struct.pack(format_string, *data_list)
