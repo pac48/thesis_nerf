@@ -102,7 +102,7 @@ def get_points(depth, fx, fy, cx, cy, width, height):
     # y_scale = (height - cy - 10) / height
 
     x_scale = (width - cx + 10) / width
-    y_scale = (height - cy - 20) / height
+    y_scale = (height - cy - 10) / height
 
     [Xgrid, Ygrid] = np.meshgrid(np.linspace(-(1.0 - x_scale) * width, x_scale * width, width),
                                  np.linspace(-(1.0 - y_scale) * height, y_scale * height, height))
