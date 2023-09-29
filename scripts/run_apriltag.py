@@ -98,8 +98,12 @@ def get_points(depth, fx, fy, cx, cy, width, height):
     # x_scale = (width - cx + 40) / width  # TODO why are these needed??
     # y_scale = (height - cy + 32) / height
 
-    x_scale = (width - cx) / width
-    y_scale = (height - cy - 10) / height
+    # x_scale = (width - cx) / width
+    # y_scale = (height - cy - 10) / height
+
+    x_scale = (width - cx + 10) / width
+    y_scale = (height - cy - 20) / height
+
     [Xgrid, Ygrid] = np.meshgrid(np.linspace(-(1.0 - x_scale) * width, x_scale * width, width),
                                  np.linspace(-(1.0 - y_scale) * height, y_scale * height, height))
     X = (Xgrid) * Z / fx  # / (fx / width)

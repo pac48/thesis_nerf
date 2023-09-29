@@ -38,38 +38,38 @@ t.start()
 
 
 def epipolar_rectify(imL, imR):
-    orb = cv2.ORB_create()
-    # Detect and compute keypoints and descriptors for both images
-    keypoints_left, descriptors_left = orb.detectAndCompute(imL, None)
-    keypoints_right, descriptors_right = orb.detectAndCompute(imR, None)
-    bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+    # orb = cv2.ORB_create()
+    # # Detect and compute keypoints and descriptors for both images
+    # keypoints_left, descriptors_left = orb.detectAndCompute(imL, None)
+    # keypoints_right, descriptors_right = orb.detectAndCompute(imR, None)
+    # bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+    #
+    # # Match descriptors
+    # matches = bf.match(descriptors_left, descriptors_right)
+    #
+    # # Sort matches by distance (smaller distances are better)
+    # matches = sorted(matches, key=lambda x: x.distance)
+    #
+    # N = 50
+    # good_matches = matches[:N]
+    #
+    # points_left = [keypoints_left[match.queryIdx].pt for match in good_matches]
+    # points_right = [keypoints_right[match.trainIdx].pt for match in good_matches]
+    #
+    # points_left = np.int32(points_left)
+    # points_right = np.int32(points_right)
+    #
+    # F, mask = cv2.findFundamentalMat(points_left, points_right, cv2.FM_RANSAC)
+    #
+    # retval, h1, h2 = cv2.stereoRectifyUncalibrated(points_left, points_right, F, (imR.shape[1], imR.shape[0]))
+    #
+    # # Rectify the left image
+    # left_rectified = cv2.warpPerspective(imL, h1, (imL.shape[1], imL.shape[0]))
+    #
+    # # Rectify the right image
+    # right_rectified = cv2.warpPerspective(imR, h2, (imR.shape[1], imR.shape[0]))
 
-    # Match descriptors
-    matches = bf.match(descriptors_left, descriptors_right)
-
-    # Sort matches by distance (smaller distances are better)
-    matches = sorted(matches, key=lambda x: x.distance)
-
-    N = 50
-    good_matches = matches[:N]
-
-    points_left = [keypoints_left[match.queryIdx].pt for match in good_matches]
-    points_right = [keypoints_right[match.trainIdx].pt for match in good_matches]
-
-    points_left = np.int32(points_left)
-    points_right = np.int32(points_right)
-
-    F, mask = cv2.findFundamentalMat(points_left, points_right, cv2.FM_RANSAC)
-
-    retval, h1, h2 = cv2.stereoRectifyUncalibrated(points_left, points_right, F, (imR.shape[1], imR.shape[0]))
-
-    # Rectify the left image
-    left_rectified = cv2.warpPerspective(imL, h1, (imL.shape[1], imL.shape[0]))
-
-    # Rectify the right image
-    right_rectified = cv2.warpPerspective(imR, h2, (imR.shape[1], imR.shape[0]))
-
-    print(F)
+    # print(F)
 
     fx = 506.4702
     fy = 506.7368
@@ -86,15 +86,21 @@ def epipolar_rectify(imL, imR):
                         [0, 0, 1]])
 
     # Define the distortion coefficients for both cameras
-    dist_coeffs_left = np.array([0.0949, -0.0949, 0, 0, 0])
-    dist_coeffs_right = np.array([0.0949, -0.0949, 0, 0, 0])
+    dist_coeffs_left = np.array([0.0990, -0.1669, 0, 0, 0])
+    dist_coeffs_right = np.array([0.0990, -0.1669, 0, 0, 0])
 
     # Define the relative transformation between the cameras (rotation and translation matrices)
-    R = np.array([[1.0, 0.0, 0.0],
-                  [0.0, 1.0, 0.0],
-                  [0.0, 0.0, 1.0]])
+    # R = np.array([[1.0000, -0.0084, -0.0020],
+    #               [0.0084, 1.0000, 0.0034],
+    #               [0.0020, -0.0034, 1.0000]])
+    #
+    # T = np.array([-98.8085, 0.2035, -0.5200])  # Baseline is the distance between the camera centers
 
-    T = np.array([baseline, 0, 0])  # Baseline is the distance between the camera centers
+    R = np.array([[1.0000, -0.0084, -0.0020],
+                  [0.0084, 1.0000, 0.0034],
+                  [0.0020, -0.0034, 1.0000]])
+
+    T = np.array([98.8041, 1.0369, -0.3192])  # Baseline is the distance between the camera centers
 
     # Compute the rectification transformations
     image_width = imL.shape[1]
@@ -112,23 +118,27 @@ def epipolar_rectify(imL, imR):
     rectified_left = cv2.remap(imL, map1_left, map2_left, interpolation=cv2.INTER_LINEAR)
     rectified_right = cv2.remap(imR, map1_right, map2_right, interpolation=cv2.INTER_LINEAR)
 
-    return rectified_left, rectified_right
+    return map1_left, map2_left, map1_right, map2_right
 
 
 def send_model_point_cloud(model_stereo, left, right):
     if right is None or left is None:
         return
 
-    # left, right = epipolar_rectify(left, right)
+    # map1_left, map2_left, map1_right, map2_right = epipolar_rectify(left, right)
 
     baseline = 0.0978
     h_fov = 90
     fov = h_fov * (math.pi / 180.0)  # 2.28308824
 
+    # fx = 506.4702*.93
+    # fy = 506.7368*1.02
+    #
     fx = 506.4702
     fy = 506.7368
-    cx = 322.3706
-    cy = 247.0331
+
+    cx = 640.0/2
+    cy = 480.0/2 #247.0331
 
     width = left.shape[1]
     height = left.shape[0]
@@ -137,11 +147,12 @@ def send_model_point_cloud(model_stereo, left, right):
     right = right[:, :, :3].astype(np.float32)
     left = left[:, :, :3].astype(np.float32)
     disp = get_disparity(model_stereo, left, right)
+    # disp = cv2.remap(disp, map1_left, map2_left, interpolation=cv2.INTER_LINEAR)
 
     focal = 1.0 * 1.05
     depth = baseline * focal / disp
     depth = depth / 2  # correct for scaling
-    stereo_points = 1000 * get_points(depth, fx, fy, cx, cy, width, height)
+    stereo_points = 1000 * get_points(depth -.03/1000, fx, fy, cx, cy, width, height)
 
     tmp = left / 255
     tmp[tmp > 1.0] = 1.0
