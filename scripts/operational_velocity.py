@@ -17,9 +17,11 @@ class ROSInterface:
         self.robot = robot
         self.node = node
         self.jointMap = {name: ind for ind, name in enumerate(self.robot.jointNames)}
+        self.last_update = 0
 
     def vel_callback(self, msg):
         self.vel_msg = msg
+        self.last_update = time.time()
 
     def joint_states_callback(self, msg):
         self.joint_states_msg = msg
@@ -30,8 +32,8 @@ class ROSInterface:
         self.robot.setJoints(q)
 
     def spin_thread(self):
-        self.node.create_subscription(JointState, 'robot/joint_states', self.joint_states_callback, 10)
-        self.node.create_subscription(Float32MultiArray, '/operational_velocity', self.vel_callback, 10)
+        self.node.create_subscription(JointState, 'joint_states', self.joint_states_callback, 10)
+        self.node.create_subscription(Float32MultiArray, 'operational_velocity', self.vel_callback, 10)
         rclpy.spin(self.node)
 
 
@@ -56,7 +58,7 @@ def run():
     t1.start()
 
     I = np.eye(q.shape[0])
-    alpha = .0001
+    alpha = .005
     cmd_pub = node.create_publisher(JointCommand, '/robot/limb/right/joint_command', 10)
     cmd_msg = JointCommand()
     cmd_msg.names = robot.jointNames
@@ -65,17 +67,24 @@ def run():
     gripper_msg.mode = cmd_msg.POSITION_MODE
     gripper_msg.names = ['right_gripper_l_finger_joint', 'right_gripper_r_finger_joint']
     gripper_msg.position = [0.0, 0.0]
-    last_trigger = 0
     while rclpy.ok():
         if ros_interface.vel_msg and ros_interface.joint_states_msg:
             print(ros_interface.vel_msg)
-            xd = np.array(ros_interface.vel_msg)
-            J = robot.getJacobian('right_gripper_l_finger')
-            qd = np.linalg.inv(J.T @ J + alpha * I) @ J.T @ xd
-            cmd_msg.velocity = list(qd)
+            xd = np.array(ros_interface.vel_msg.data)
+        else:
+            xd = np.zeros((6,), dtype=np.float32)
+        J = robot.getJacobian('right_gripper_l_finger_tip')
+        assert robot.jointNames[8] == 'right_gripper_l_finger_joint'
+        J[:, -3:-1] = 0
 
-            cmd_pub.publish(cmd_msg)
-            time.sleep(.1)
+        qd = np.linalg.inv(J.T @ J + alpha * I) @ J.T @ xd
+        cmd_msg.velocity = list(qd)
+
+        cmd_pub.publish(cmd_msg)
+        time.sleep(.1)
+
+        if time.time() - ros_interface.last_update > 1:
+            ros_interface.vel_msg = None
 
 
 run()
